@@ -4,6 +4,7 @@ import numpy as np
 from plotly.offline import init_notebook_mode
 init_notebook_mode(connected=True)
 
+
 def axvlines(xs, **plot_kwargs):
     """
     Draw vertical lines on plot
@@ -18,6 +19,7 @@ def axvlines(xs, **plot_kwargs):
     plot = plt.plot(x_points, y_points, color='red', alpha=0.4, scaley = False, **plot_kwargs)
     return plot
 
+
 def fill_x(orig):
     new_x = [orig[0]]
     for i in range(1, len(orig)):
@@ -25,6 +27,7 @@ def fill_x(orig):
         new_x.append(orig[i-1] + (orig[i] - orig[i-1]) / 2)
         new_x.append(orig[i])
     return np.array(new_x)
+
 
 def fill_y(orig):
     new_y = [orig[0]]
@@ -34,52 +37,77 @@ def fill_y(orig):
         new_y.append(orig[i])
     return np.array(new_y)
 
+
 def axline(x):
     plt.axvline(x, linestyle='--', color='gray')
 
+
 def standardize(feat):
+    # TODO
     return feat
 
 
-def plot_feat(exp, feat, noise_levels = {}, axlines = {},
-    ylims = {}, xlims = {}, xlabels = {}):
-    i = exp.feature_names.index(feat)
-    data = exp.data(i)
-    if type(data['names'][0]) is str:
-        return
-    fig = plt.figure(figsize=(15, 10))
-    my_min = np.min(data['scores'])
-
-    standard_feat = standardize(feat.lower().strip())
-    print(standard_feat)
-    xlabel = xlabels.get(standard_feat, feat)
-    for x in axlines.get(standard_feat, []):
-        axline(x)
+def plot_numeric(data, xlims, standard_feat):
     my_xlims = xlims.get(standard_feat, [np.percentile(data['names'], 2), np.percentile(data['names'], 98)])
-    my_ylims = ylims.get(standard_feat, [-0.0, 5.0])
-    noise_level = noise_levels.get(standard_feat, 0.01)
-    plt.xlabel(xlabel, fontsize=54)
-    plt.xlim(my_xlims)
-    plt.ylim(my_ylims)
-
     my_names = data['names']
-    my_xs = X[feat]
-    if 'tempc' in feat.lower():
-        my_xs = my_xs * (9/5) + 32
-        my_names = np.array(my_names)*(9/5) + 32
-    if noise_level > 0:
-        axvlines(sorted(my_xs+np.random.uniform(-noise_level, noise_level, size=my_xs.shape))[::50])
+
+    my_min = np.min([data['scores'][j] for j, x in enumerate(my_names)
+                     if x <= plt.xlim()[1] and x >= plt.xlim()[0]])
+    lowers = np.exp(fill_y(data['lower_bounds']-my_min))
+    uppers = np.exp(fill_y(data['upper_bounds']-my_min))
+    means  = np.exp(fill_y(data['scores']-my_min))
+    return my_names, my_xlims, lowers, uppers, means
+
+
+def plot_discrete(data, xlims, my_xs):
+    my_names = list(set(X[feat].values))
+    my_xlims = [-0.5, len(my_names)-0.5]
     my_min = np.min([data['scores'][j] for j, x in enumerate(my_names)
                      if x <= plt.xlim()[1] and x >= plt.xlim()[0]])
     lowers = np.exp(fill_y(data['lower_bounds']-my_min))
     uppers = np.exp(fill_y(data['upper_bounds']-my_min))
     means  = np.exp(fill_y(data['scores']-my_min))
 
+    #plt.errorbar(data['names'], data['scores'], yerr=np.array(data['upper_bounds'])-np.array(data['scores']))
+    if len(my_names) > 5:
+        plt.xticks(rotation=60, ha='right')
+    return my_names, my_xlims, lowers, uppers, means
+
+
+def plot_feat(exp, feat, X=None, noise_levels={}, axlines={},
+    ylims={}, xlims={}, xlabels={}, ylabel="Odds Ratio"):
+    i = exp.feature_names.index(feat)
+    data = exp.data(i)
+    if type(data['names'][0]) is str:
+        return
+    fig = plt.figure(figsize=(15, 10))
+    #my_min = np.min(data['scores'])
+    standard_feat = standardize(feat.lower().strip())
+    xlabel = xlabels.get(standard_feat, feat)
+    plt.xlabel(xlabel, fontsize=54)
+    if X is not None:
+        my_xs = X[feat]
+    for x in axlines.get(standard_feat, []):
+        axline(x)
+    try:
+        my_names, my_xlims, lowers, uppers, means = plot_numeric(data, xlims, standard_feat)
+        default_noise_level = 0.01
+    except:
+        my_names, my_xlims, lowers, uppers, means = plot_discrete(data, xlims, my_xs)
+        default_noise_level = 0.1
+
+    plt.xlim(my_xlims)
+    my_ylims = ylims.get(standard_feat, [-0.0, 5.0])
+    plt.ylim(my_ylims)
+    noise_level = noise_levels.get(standard_feat, default_noise_level)
+    if X is not None and noise_level > 0:
+        axvlines(sorted(my_xs+np.random.uniform(-noise_level, noise_level, size=my_xs.shape))[::50])
+
     plt.fill_between(fill_x(my_names), means-2*(means-lowers),
                      means+2*(uppers-means), alpha=0.2)
     plt.plot(fill_x(my_names), means)
-    plt.ylabel("Mortality Odds Ratio", fontsize=46)
-    #plt.show()
+    plt.ylabel(ylabel, fontsize=46)
+
 
 def plot_all_bools(feat_names, ebm_global, mpl_style=False,
     figname=None, figsize=(12, 12), min_samples=None, ticksize=26):
@@ -123,7 +151,8 @@ def plot_all_bools(feat_names, ebm_global, mpl_style=False,
         lower_bounds = np.array(lower_bounds)[sorted_i]
         densities_dict = {'names': names,
                           'scores': np.array(densities)[sorted_i]}
-        data_dict = {'type': 'univariate',
+        data_dict = {
+            'type': 'univariate',
             'names': names,
             'scores': impacts,
             'scores_range': (np.min(lower_bounds), np.max(upper_bounds)),
