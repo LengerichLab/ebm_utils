@@ -2,6 +2,11 @@ from interpret.visual.plot import plot_bar
 import matplotlib.pyplot as plt
 import numpy as np
 from plotly.offline import init_notebook_mode
+import pandas as pd
+from interpret.glassbox import ExplainableBoostingClassifier, ExplainableBoostingRegressor
+ebc = ExplainableBoostingClassifier
+ebr = ExplainableBoostingRegressor
+
 init_notebook_mode(connected=True)
 
 
