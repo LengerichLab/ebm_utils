@@ -65,21 +65,28 @@ def plot_discrete(data, xlims, my_names):
         plt.xticks(rotation=60, ha='right')
     return my_names, my_xlims, lowers, uppers, means
 
+def repeat_last(np_ar):
+    return np.append(np_ar, np_ar[-1])
+
 
 def plot_numeric(data, xlims, standard_feat):
     my_xlims = xlims.get(standard_feat, [np.percentile(data['names'], 2), np.percentile(data['names'], 98)])
-    my_names = data['names'][:-1]
+    my_names = data['names']
 
-    my_min = np.min([data['scores'][j] for j, x in enumerate(my_names)
+    my_min = np.min([repeat_last(data['scores'])[j] for j, x in enumerate(my_names)
                      if x <= plt.xlim()[1] and x >= plt.xlim()[0]])
-    lowers = np.exp(fill_y(data['lower_bounds']-my_min))
-    uppers = np.exp(fill_y(data['upper_bounds']-my_min))
-    means  = np.exp(fill_y(data['scores']-my_min))
+    lowers = np.exp(fill_y(repeat_last(data['lower_bounds']-my_min)))
+    uppers = np.exp(fill_y(repeat_last(data['upper_bounds']-my_min)))
+    means  = np.exp(fill_y(repeat_last(data['scores']-my_min)))
     return my_names, my_xlims, lowers, uppers, means
 
 def ebm_marginalize(X, Y, feat_name, xlims={}, ylims={}, noise_levels={}, ylabel="Odds Ratio", plot_every=50,
+    classification=True,
                     **kwargs):
-    ebm = ebc(interactions=0, **kwargs)
+    if classification:
+        ebm = ebc(interactions=0, **kwargs)
+    else:
+        ebm = ebr(interactions=0, **kwargs)
     ebm.fit(X, Y)
     exp = ebm.explain_global()
     data = exp.data(0)
