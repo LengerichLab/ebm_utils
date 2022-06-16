@@ -57,10 +57,14 @@ def plot_discrete(data, xlims, my_names, exp=True):
     my_xlims = [-0.5, len(my_names)-0.5]
     my_min = np.min([data['scores'][j] for j, x in enumerate(my_names)
                      if x <= plt.xlim()[1] and x >= plt.xlim()[0]])
-    lowers = np.exp(fill_y(data['lower_bounds']-my_min))
-    uppers = np.exp(fill_y(data['upper_bounds']-my_min))
-    means  = np.exp(fill_y(data['scores']-my_min))
-
+    if exp:
+        lowers = np.exp(fill_y(data['lower_bounds']-my_min))
+        uppers = np.exp(fill_y(data['upper_bounds']-my_min))
+        means  = np.exp(fill_y(data['scores']-my_min))
+    else:
+        lowers = fill_y(data['lower_bounds']-my_min)
+        uppers = fill_y(data['upper_bounds']-my_min)
+        means  = fill_y(data['scores']-my_min)
     if len(my_names) > 5:
         plt.xticks(rotation=60, ha='right')
     return my_names, my_xlims, lowers, uppers, means
@@ -75,9 +79,14 @@ def plot_numeric(data, xlims, standard_feat, exp=True):
 
     my_min = np.min([repeat_last(data['scores'])[j] for j, x in enumerate(my_names)
                      if x <= plt.xlim()[1] and x >= plt.xlim()[0]])
-    lowers = np.exp(fill_y(repeat_last(data['lower_bounds']-my_min)))
-    uppers = np.exp(fill_y(repeat_last(data['upper_bounds']-my_min)))
-    means  = np.exp(fill_y(repeat_last(data['scores']-my_min)))
+    if exp:
+        lowers = np.exp(fill_y(repeat_last(data['lower_bounds']-my_min)))
+        uppers = np.exp(fill_y(repeat_last(data['upper_bounds']-my_min)))
+        means  = np.exp(fill_y(repeat_last(data['scores']-my_min)))
+    else:
+        lowers = fill_y(repeat_last(data['lower_bounds']-my_min))
+        uppers = fill_y(repeat_last(data['upper_bounds']-my_min))
+        means  = fill_y(repeat_last(data['scores']-my_min))
     return my_names, my_xlims, lowers, uppers, means
 
 def ebm_marginalize(X, Y, feat_name, xlims={}, ylims={}, noise_levels={}, ylabel="Odds Ratio", plot_every=50,
