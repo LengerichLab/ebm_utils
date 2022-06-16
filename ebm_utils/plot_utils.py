@@ -53,7 +53,7 @@ def standardize(feat):
     return feat
 
 
-def plot_discrete(data, xlims, my_names):
+def plot_discrete(data, xlims, my_names, exp=True):
     my_xlims = [-0.5, len(my_names)-0.5]
     my_min = np.min([data['scores'][j] for j, x in enumerate(my_names)
                      if x <= plt.xlim()[1] and x >= plt.xlim()[0]])
@@ -69,7 +69,7 @@ def repeat_last(np_ar):
     return np.append(np_ar, np_ar[-1])
 
 
-def plot_numeric(data, xlims, standard_feat):
+def plot_numeric(data, xlims, standard_feat, exp=True):
     my_xlims = xlims.get(standard_feat, [np.percentile(data['names'], 2), np.percentile(data['names'], 98)])
     my_names = data['names']
 
@@ -93,10 +93,10 @@ def ebm_marginalize(X, Y, feat_name, xlims={}, ylims={}, noise_levels={}, ylabel
     fig = plt.figure(figsize=(15, 10))
     plt.xlabel(feat_name, fontsize=54)
     try:
-        my_names, my_xlims, lowers, uppers, means = plot_numeric(data, xlims, feat_name)
+        my_names, my_xlims, lowers, uppers, means = plot_numeric(data, xlims, feat_name, exp=classification)
         default_noise_level = 0.01
     except:
-        my_names, my_xlims, lowers, uppers, means = plot_discrete(data, xlims, list(set(X[feat_name].values)))
+        my_names, my_xlims, lowers, uppers, means = plot_discrete(data, xlims, list(set(X[feat_name].values)), exp=classification)
         default_noise_level = 0.1
     plt.xlim(my_xlims)
     if feat_name in ylims:
