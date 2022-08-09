@@ -220,3 +220,129 @@ def plot_all_bools(feat_names, ebm_global, mpl_style=False,
             'density': densities_dict,
             }
         return plot_bar(data_dict)
+
+
+
+def fit_or_load_ebm(directory, should_refit, X_train=None, y_train=None,
+    n_estimators=100, feature_step_n_inner_bags=100, regression=False,
+    min_cases_for_splits=25,
+    early_stopping_tolerance=1e-5, early_stopping_run_length=25):
+
+    if should_refit:
+        if regression:
+            ebm1 = ExplainableBoostingRegressor(interactions=0,
+                n_estimators=n_estimators,
+                feature_step_n_inner_bags=feature_step_n_inner_bags,
+                min_cases_for_splits=min_cases_for_splits,
+                early_stopping_tolerance=early_stopping_tolerance,
+                early_stopping_run_length=early_stopping_run_length)
+        else:
+            ebm1 = ExplainableBoostingClassifier(interactions=0,
+               n_estimators=n_estimators,
+               feature_step_n_inner_bags=feature_step_n_inner_bags,
+               min_cases_for_splits=min_cases_for_splits,
+                early_stopping_tolerance=early_stopping_tolerance,
+                early_stopping_run_length=early_stopping_run_length)
+
+        ebm1.fit(X_train, y_train)
+        np.save("{}/ebm1.npy".format(directory), ebm1)
+
+        if regression:
+            ebm = ExplainableBoostingRegressor(interactions=50,
+               n_estimators=n_estimators,
+               feature_step_n_inner_bags=feature_step_n_inner_bags)
+        else:
+            ebm = ExplainableBoostingClassifier(interactions=50,
+               n_estimators=n_estimators,
+               feature_step_n_inner_bags=feature_step_n_inner_bags)
+        ebm.fit(X_train, y_train)
+        np.save("{}/ebm.npy".format(directory), ebm)
+    else:
+        ebm1 = np.load("{}/ebm1.npy".format(directory),
+                       allow_pickle=True).item()
+        ebm  = np.load("{}/ebm.npy".format(directory),
+                       allow_pickle=True).item()
+    return ebm, ebm1
+
+
+def make_preds(ebm_global, X, margs, pairs, intercept=0):
+    preds = []
+    preds_mains = []
+    pairs_keys_set = set(pairs.keys())
+    for i in range(X.shape[0]):
+        if i % 100 == 0:
+            print(i, end='\r')
+        pred = 0
+        pred_main = 0
+        for j in range(X.shape[1]):
+            good_vals = get_feat_vals(ebm_global, j)
+            try:
+                pred_main += margs[j][find_bin(X[i, j], good_vals)]
+            except KeyError:
+                pass
+
+            for k in range(j, X.shape[1]): # j < k
+                if (j, k) not in pairs_keys_set:
+                    continue
+                good_vals2 = get_feat_vals(ebm_global, k)
+                idx1 = find_bin(X[i, j], good_vals)
+                idx2 = find_bin(X[i, k], good_vals2)
+                pred += pairs[(j, k)][idx1, idx2]
+        preds.append(pred_main + pred)
+        preds_mains.append(pred_main)
+    return np.array(preds)+intercept, np.array(preds_mains)+intercept
+
+
+def plot_mains(key, ebm_global, X_stds, X_means,
+    ebm_results, xgb_results, dataset_name):
+    # TODO: Center
+    feat_vals = np.array(get_feat_vals(ebm_global, key))
+    if X_stds is not None:
+        feat_vals *= X_stds[key]
+        feat_vals += X_means[key]
+
+    my_zero = np.zeros_like(ebm_results[1][0][key])
+    all_ebm_mains = [x[0].get(key, my_zero) for x in
+        ebm_results
+    ]
+    all_xgb_mains = [x[0].get(key, my_zero) for x in
+        xgb_results
+    ]
+
+    y_min = np.min(np.vstack((
+        np.array(all_xgb_mains),
+        np.array(all_ebm_mains)))
+    )
+    y_min -= 0.05*np.abs(y_min)
+    y_max = np.max(np.vstack((
+        np.array(all_xgb_mains),
+        np.array(all_ebm_mains)))
+    )
+    y_max += 0.05*np.abs(y_max)
+
+    fig = plt.figure(figsize=(14, 10))
+    ax = plt.subplot(1,2,1)
+    ax.set_title("XGB-2", fontsize=20)
+    colors = ['black', 'red', 'blue', 'orange', 'teal', 'green']
+    for i, x in enumerate(all_xgb_mains):
+        plt.plot(feat_vals, x, linestyle='--', color=colors[i], label=xgb_results[i][1])
+
+    ax.set_ylabel("Addition to Score", fontsize=18)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    plt.ylim([y_min, y_max])
+    plt.xlabel(ebm_global.feature_names[key], fontsize=18)
+
+    ax = plt.subplot(1, 2, 2)
+    ax.set_title("GA2M", fontsize=20)
+    for i, x in enumerate(all_ebm_mains):
+        plt.plot(feat_vals, x, linestyle='--', color=colors[i], label=ebm_results[i][1])
+
+    lgd = plt.legend(fontsize=16, loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    plt.ylim([y_min, y_max])
+
+    plt.xlabel(ebm_global.feature_names[key], fontsize=18)
+    plt.savefig("figs/{}/{}.pdf".format(dataset_name, ebm_global.feature_names[key]),
+        dpi=300, bbox_extra_artists=(lgd, ), bbox_inches='tight')
