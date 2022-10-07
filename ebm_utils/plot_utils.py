@@ -56,13 +56,17 @@ def standardize(feat):
     return feat
 
 
+def repeat_last(np_ar):
+    return np.append(np_ar, np_ar[-1])
+
+
 def plot_discrete(data, xlims, my_names, exp=True):
     my_xlims = [-0.5, len(my_names) - 0.5]
     my_min = np.min(
         [
             data["scores"][j]
             for j, x in enumerate(my_names)
-            if x <= plt.xlim()[1] and x >= plt.xlim()[0]
+            #if x <= plt.xlim()[1] and x >= plt.xlim()[0]
         ]
     )
     if exp:
@@ -74,12 +78,12 @@ def plot_discrete(data, xlims, my_names, exp=True):
         uppers = fill_y(data["upper_bounds"] - my_min)
         means = fill_y(data["scores"] - my_min)
     if len(my_names) > 5:
-        plt.xticks(rotation=60, ha="right")
-    return my_names, my_xlims, lowers, uppers, means
+        plt.xticks(range(len(my_names)), my_names, rotation=60, ha="right")
+    else:
+        plt.xticks(range(len(my_names)), my_names)
 
-
-def repeat_last(np_ar):
-    return np.append(np_ar, np_ar[-1])
+    my_names_as_ints = np.array(list(range(len(my_names))))
+    return my_names_as_ints, my_xlims, lowers, uppers, means
 
 
 def plot_numeric(data, xlims, standard_feat, exp=True):
@@ -88,12 +92,11 @@ def plot_numeric(data, xlims, standard_feat, exp=True):
         [np.percentile(data["names"], 2), np.percentile(data["names"], 98)],
     )
     my_names = data["names"]
-
     my_min = np.min(
         [
             repeat_last(data["scores"])[j]
             for j, x in enumerate(my_names)
-            if x <= plt.xlim()[1] and x >= plt.xlim()[0]
+            if x >= my_xlims[0] and x <= my_xlims[1]
         ]
     )
     if exp:
@@ -104,6 +107,7 @@ def plot_numeric(data, xlims, standard_feat, exp=True):
         lowers = fill_y(repeat_last(data["lower_bounds"] - my_min))
         uppers = fill_y(repeat_last(data["upper_bounds"] - my_min))
         means = fill_y(repeat_last(data["scores"] - my_min))
+
     return my_names, my_xlims, lowers, uppers, means
 
 
@@ -208,7 +212,8 @@ def plot_feat(
         )
         default_noise_level = 0.01
     except:
-        my_names, my_xlims, lowers, uppers, means = plot_discrete(data, xlims, my_xs)
+        my_names, my_xlims, lowers, uppers, means = plot_discrete(data, xlims, data['names'])
+        my_xs = np.array([float(data['names'].index(str(x))) for x in my_xs])
         default_noise_level = 0.1
 
     plt.xlim(my_xlims)
