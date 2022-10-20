@@ -410,12 +410,12 @@ def plot_mains(ebm_global, X_train, **kwargs):
                 plt.savefig("{}/{}.pdf".format(kwargs['savedir'], feature_name), dpi=300)
 
 
-def plot_importances(ebm_global, n_features=25):
-    impts = ebm_global.feature_importances_
+def plot_importances(ebm, n_features=25):
+    impts = ebm.term_importances()
     impts_sorted = list(reversed(list(sorted(enumerate(impts), key=lambda x: x[1]))))
     fig = plt.figure(figsize=(12, 6))
     plt.bar(range(n_features), [x[1] for x in impts_sorted[:n_features]])
-    plt.xticks(range(n_features), [ebm_global.feature_names[x[0]] for x in impts_sorted[:n_features]],
+    plt.xticks(range(n_features), [ebm.term_names_[x[0]] for x in impts_sorted[:n_features]],
               rotation=60, ha='right', fontsize=16)
     plt.ylabel("Feature Importance", fontsize=32)
 
