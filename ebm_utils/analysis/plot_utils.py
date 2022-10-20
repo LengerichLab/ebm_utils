@@ -205,6 +205,8 @@ def plot_all_bools(
                 if verbose:
                     print("Feature: {} is not observed as a Boolean variable.".format(
                         feat_name))
+    if counter == 0:
+        return
     if mpl_style:
         fig = plt.figure(figsize=figsize)
         sorted_i = np.argsort(impacts)
@@ -381,8 +383,8 @@ def plot_all_features(ebm_global, X_train, **kwargs):
 def plot_pairs(ebm_global, X_train, **kwargs):
     for i, feature_name in enumerate(ebm_global.feature_names):
         if ebm_global.feature_types[i] == 'interaction':
-            feat_id1 = ebm_global.feature_names.index(feature_name.split(' x ')[0])
-            feat_id2 = ebm_global.feature_names.index(feature_name.split(' x ')[1])
+            feat_id1 = ebm_global.feature_names.index(feature_name.split(' & ')[0])
+            feat_id2 = ebm_global.feature_names.index(feature_name.split(' & ')[1])
             plot_interaction(ebm_global, ebm_global.data(i)['scores'].T, feat_id1, feat_id2)
             plt.show()
 
