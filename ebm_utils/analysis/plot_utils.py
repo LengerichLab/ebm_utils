@@ -398,7 +398,9 @@ def plot_mains(ebm_global, X_train, **kwargs):
         ticksize=kwargs.get('bool_ticksize', 26),
         ylabel=kwargs.get('ylabel', 'Addition to Score'))
     for i, feature_name in enumerate(ebm_global.feature_names):
-        if ebm_global.feature_types[i] != 'interaction':
+        if ebm_global.feature_types[i] == 'interaction':
+            continue
+        if len(set(X_train.values[:, i])) != 2 or kwargs.get('plot_bools_individually', False):
             plot_feat(
                 ebm_global, feature_name, X_train,
                 noise_levels=kwargs.get('noise_levels', {}),
