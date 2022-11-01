@@ -2,10 +2,10 @@
 Intalling EBM Utils.
 """
 
-import setuptools
+from setuptools import setup, find_packages
 
-setuptools.setup(name='ebm_utils',
-      packages=['ebm_utils'],
+setup(name='ebm_utils',
+      packages=find_packages(),
       version='0.0.0',
       install_requires=[
           'numpy',
