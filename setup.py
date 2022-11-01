@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 setup(name='ebm_utils',
       packages=find_packages(),
-      version='0.0.0',
+      version='0.0.1',
       install_requires=[
           'numpy',
           'scikit-learn',
