@@ -1,23 +1,37 @@
+"""
+Utility for saving and loading EBMs.
+"""
+
 import numpy as np
 from interpret.glassbox import (
     ExplainableBoostingClassifier,
     ExplainableBoostingRegressor,
 )
-ebc = ExplainableBoostingClassifier
-ebr = ExplainableBoostingRegressor
+EBC = ExplainableBoostingClassifier
+EBR = ExplainableBoostingRegressor
+
+
+def load_ebm(directory, model_name):
+    """
+    Loads and ebm from provided directory and filename.
+    """
+    return np.load(f"{directory}/{model_name}.npy", allow_pickle=True).item()
 
 
 def fit_or_load_ebm(directory, should_refit,
-                    model_name="ebm1", X_train=None, Y_train=None,
+                    model_name="ebm1", data=None,
                     regression=False, **ebm_kwargs):
+    """
+    Fits and saves, or loads,
+    an EBM with save/load depending on the should_refit parameter.
+    """
 
     if should_refit:
         if regression:
-            ebm = ebr(**ebm_kwargs)
+            ebm = EBR(**ebm_kwargs)
         else:
-            ebm = ebc(**ebm_kwargs)
-        ebm.fit(X_train, Y_train)
-        np.save("{}/{}.npy".format(directory, model_name), ebm)
-    else:
-        ebm = np.load("{}/{}.npy".format(directory, model_name), allow_pickle=True).item()
-    return ebm
+            ebm = EBC(**ebm_kwargs)
+        ebm.fit(data["X_train"], data["Y_train"])
+        np.save(f"{directory}/{model_name}.npy", ebm)
+        return ebm
+    return load_ebm(directory, model_name)
