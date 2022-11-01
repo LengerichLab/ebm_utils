@@ -1,3 +1,7 @@
+"""
+Unit tests for EBM Utils.
+"""
+
 import unittest
 
 

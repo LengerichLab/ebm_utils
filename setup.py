@@ -1,3 +1,7 @@
+"""
+Intalling EBM Utils.
+"""
+
 import setuptools
 
 setuptools.setup(name='ebm_utils',
