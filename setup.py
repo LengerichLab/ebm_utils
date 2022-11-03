@@ -4,12 +4,15 @@ Intalling EBM Utils.
 
 from setuptools import setup, find_packages
 
-setup(name='ebm_utils',
-      packages=find_packages(),
-      version='0.0.1',
-      author='Ben Lengerich',
-      url='github.com/blengerich/ebm_utils',
-      install_requires=[
+VERSION = "0.0.1"
+
+setup(
+    name='ebm_utils',
+    packages=find_packages(),
+    version=VERSION,
+    author='Ben Lengerich',
+    url='github.com/blengerich/ebm_utils',
+    install_requires=[
           'numpy',
           'scikit-learn',
           'matplotlib',
