@@ -8,24 +8,87 @@ from sdt.changepoint import BayesOffline
 
 from ebm_utils.analysis.embeddings import calc_embeddings
 from ebm_utils.fit import fit_ebm
+from ebm_utils.analysis.plot_utils import plot_feat, standardize
+
+
+def find_and_plot_non_monotonicities(
+    X_train, Y_train, ebm_constructor_kwargs=None, ebm_fit_kwargs=None, **kwargs
+):
+    """Find and plot non-monotoniciites in a DataFrame of predictors and outcomes."""
+    results_df, ebm = find_non_monotonicities(
+        X_train,
+        Y_train,
+        return_ebm=True,
+        ebm_constructor_kwargs=ebm_constructor_kwargs,
+        ebm_fit_kwargs=ebm_fit_kwargs,
+        **kwargs,
+    )
+    for feature in set(results_df["Feature"].values):
+        idxs = results_df["Feature"] == feature
+        x_vals = results_df["Value"].loc[idxs].values
+        plot_feat(
+            ebm.explain_global(),
+            feature,
+            X_train=X_train,
+            classification=kwargs.get("classification", True),
+            axlines={standardize(feature): x_vals}
+        )
+    return results_df
 
 
 def find_non_monotonicities(
-    X_train, Y_train, ebm_constructor_kwargs=None, ebm_fit_kwargs=None, **kwargs
+    X_train,
+    Y_train,
+    return_ebm=False,
+    ebm_constructor_kwargs=None,
+    ebm_fit_kwargs=None,
+    **kwargs,
 ):
     """Find non-monotonicities in a DataFrame of predictors and outcomes."""
     ebm = fit_ebm(X_train, Y_train, ebm_constructor_kwargs, ebm_fit_kwargs)
-    return find_non_monotonicities_from_ebm(ebm.explain_global(), X_train, **kwargs)
+    results_df = find_non_monotonicities_from_ebm(
+        ebm.explain_global(), X_train, **kwargs
+    )
+    if return_ebm:
+        return results_df, ebm
+    return results_df
 
+
+def find_and_plot_discontinuities(
+    X_train, Y_train, ebm_constructor_kwargs=None, ebm_fit_kwargs=None, **kwargs
+):
+    """Find and plot non-monotoniciites in a DataFrame of predictors and outcomes."""
+    results_df, ebm = find_discontinuities(
+        X_train,
+        Y_train,
+        return_ebm=True,
+        ebm_constructor_kwargs=ebm_constructor_kwargs,
+        ebm_fit_kwargs=ebm_fit_kwargs,
+        **kwargs,
+    )
+    for feature in set(results_df["Feature"].values):
+        idxs = results_df["Feature"] == feature
+        x_vals = results_df["Value"].loc[idxs].values
+        plot_feat(
+            ebm.explain_global(),
+            feature,
+            X_train=X_train,
+            classification=kwargs.get("classification", True),
+            axlines={standardize(feature): x_vals}
+        )
+    return results_df
 
 def find_discontinuities(
-    X_train, Y_train, ebm_constructor_kwargs=None, ebm_fit_kwargs=None, **kwargs
+    X_train, Y_train, return_ebm=False, ebm_constructor_kwargs=None, ebm_fit_kwargs=None, **kwargs
 ):
     """Find non-monotonicities in a DataFrame of predictors and outcomes."""
     ebm = fit_ebm(X_train, Y_train, ebm_constructor_kwargs, ebm_fit_kwargs)
-    return find_discontinuities_from_ebm(
+    results_df = find_discontinuities_from_ebm(
         ebm.explain_global(), X_train, Y_train, **kwargs
     )
+    if return_ebm:
+        return results_df, ebm
+    return results_df
 
 
 def calc_slopes(x_arr, y_arr):
@@ -94,6 +157,7 @@ def find_non_monotonicities_from_ebm(
         np.array(results),
         columns=["Feature", "Value"],
     )
+    results_df['Value'] = pd.to_numeric(results_df['Value'])
     return results_df
 
 
@@ -177,7 +241,7 @@ def find_discontinuities_in_sorted(sorted_x, sorted_y, y_true, min_samples=100):
     return np.array(discontinuities)
 
 
-def find_discontinuities_from_ebm(ebm_global, data_df, y_true, min_samples=100):
+def find_discontinuities_from_ebm(ebm_global, data_df, y_true, min_samples=100, min_effect_size=0.):
     """FInd Discontinuities in the EBM components.
     Return a DataFrame of results.
     """
@@ -205,8 +269,11 @@ def find_discontinuities_from_ebm(ebm_global, data_df, y_true, min_samples=100):
                 )
             ).tolist()
         )
-    discontinuities_df = pd.DataFrame(
+    results_df = pd.DataFrame(
         np.array(discontinuities),
         columns=["Feature", "Value", "# Samples", "Effect Size", "P-Ratio"],
     )
-    return discontinuities_df.sort_values("P-Ratio", ascending=False)
+    results_df['Effect Size'] = pd.to_numeric(results_df['Effect Size'])
+    results_df = results_df.loc[results_df['Effect Size'] > min_effect_size]
+    results_df['Value'] = pd.to_numeric(results_df['Value'])
+    return results_df.sort_values("P-Ratio", ascending=False)
