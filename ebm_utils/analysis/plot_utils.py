@@ -33,12 +33,15 @@ def axvlines(x_positions, **kwargs):
     x_positions = np.array(
         (x_positions,) if np.isscalar(x_positions) else x_positions, copy=False
     )
-    lims = (0.0, plt.gca().get_ylim()[-1] * 0.05, np.nan)
+    lims = (plt.gca().get_ylim()[0], plt.gca().get_ylim()[0] + (plt.gca().get_ylim()[-1]-plt.gca().get_ylim()[0]) * 0.05, np.nan)
     x_points = np.repeat(x_positions[:, None], repeats=3, axis=1).flatten()
     y_points = np.repeat(
         np.array(lims)[None, :], repeats=len(x_positions), axis=0
     ).flatten()
-    plot = plt.plot(x_points, y_points, color="red", alpha=0.4, scaley=False, **kwargs)
+    plot = plt.plot(x_points, y_points,
+        color=kwargs.pop("axvlines_color", "red"),
+        alpha=kwargs.pop("axvlines_alpha", 0.4),
+        scaley=False)
     return plot
 
 
@@ -191,7 +194,7 @@ def setup_axline_hist(standard_feat, default_noise_level, my_xs, **kwargs):
     if my_xs is not None:
         if noise_level > 0:
             my_xs += np.random.uniform(-noise_level, noise_level, size=my_xs.shape)
-        axvlines(sorted(my_xs)[:: kwargs.get("axvlines_every", 50)])
+        axvlines(sorted(my_xs)[:: kwargs.pop("axvlines_every", 50)], **kwargs)
 
 
 def setup_ylabel(classification, **kwargs):
@@ -250,10 +253,15 @@ def plot_feat(
         fill_x(my_names),
         means - 2 * (means - lowers),
         means + 2 * (uppers - means),
-        alpha=0.2,
+        alpha=kwargs.get("fill_alpha", 0.2),
+        color=kwargs.get("fill_color", "blue"),
     )
-    plt.plot(fill_x(my_names), means)
+    plt.plot(fill_x(my_names), means, color=kwargs.get("mean_color", "blue"), linewidth=kwargs.get("mean_linewidth", 1))
     setup_ylabel(classification, **kwargs)
+    if kwargs.get("remove_spines", False):
+        ax = plt.gca()
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
 
 
 def organize_all_bools(feat_names, ebm_global, **kwargs):
@@ -287,6 +295,10 @@ def organize_all_bools(feat_names, ebm_global, **kwargs):
                     print(
                         f"Feature: {feat_name} is not observed as a Boolean variable."
                     )
+    if kwargs.get("classification", True):
+        upper_bounds = np.exp(upper_bounds)
+        lower_bounds = np.exp(lower_bounds)
+        impacts = np.exp(impacts)
     return names, upper_bounds, impacts, lower_bounds, densities, counter
 
 
@@ -312,8 +324,8 @@ def plot_all_bools(
                 counter,
                 impacts[i],
                 width=0.5,
-                color="blue",
-                edgecolor="black",
+                color=kwargs.get("color", "blue"),
+                edgecolor=kwargs.get("edgecolor", "black"),
                 yerr=np.max([0, upper_bounds[i] - impacts[i]]),
             )  # Assume symmetric error.
         plt.xticks(
@@ -327,7 +339,15 @@ def plot_all_bools(
             kwargs.get("ylabel", "Addition to Score"),
             fontsize=kwargs.get("ylabel_fontsize", 32),
         )
+        if "ylim" in kwargs:
+            plt.ylim(kwargs["ylim"])
         plt.yticks(fontsize=kwargs.get("ytick_fontsize", kwargs.get("ticksize", 16)))
+        if "axhline" in kwargs:
+            plt.axhline(
+                kwargs["axhline"],
+                linestyle=kwargs.get("axhline_linestyle", "--"),
+                color=kwargs.get("axhline_color", "gray")
+            )
         if "figname" in kwargs and kwargs["figname"] is not None:
             plt.savefig(kwargs["figname"], dpi=300, bbox_inches="tight")
         else:
@@ -445,19 +465,31 @@ def plot_pairs(ebm_global, **kwargs):
             plt.show()
 
 
-def plot_mains(ebm_global, X_train, **kwargs):
+def plot_mains(ebm_global, X_train, classification=True, **kwargs):
     """
     Plot all main effects.
     """
+    if classification:
+        ylabel = kwargs.pop("ylabel", "Addition to Log-Odds")
+    else:
+        ylabel = kwargs.pop("ylabel", "Addition to Score")
+    noise_levels=kwargs.pop("noise_levels", {})
+    axlines=kwargs.pop("axlines", {})
+    ylims=kwargs.pop("ylims", {})
+    xlims=kwargs.pop("xlims", {})
+    xlabels=kwargs.pop("xlabels", {})
+    
+    # Plot Boolean variables on a single bar chart.
     plot_all_bools(
         ebm_global.feature_names,
         ebm_global,
-        mpl_style=kwargs.get("bool_mpl_style"),
-        figname=kwargs.get("bool_figname", None),
-        figsize=kwargs.get("bool_figsize", (12, 12)),
-        min_samples=kwargs.get("bool_minsamples", 50),
-        ticksize=kwargs.get("bool_ticksize", 26),
-        ylabel=kwargs.get("ylabel", "Addition to Score"),
+        mpl_style=kwargs.pop("bool_mpl_style", True),
+        figname=kwargs.pop("bool_figname", None),
+        figsize=kwargs.pop("bool_figsize", (12, 12)),
+        min_samples=kwargs.pop("bool_minsamples", 50),
+        ticksize=kwargs.pop("bool_ticksize", 26),
+        ylabel=ylabel,
+        classification=classification
     )
     for i, feature_name in enumerate(ebm_global.feature_names):
         if ebm_global.feature_types[i] == "interaction":
@@ -469,18 +501,20 @@ def plot_mains(ebm_global, X_train, **kwargs):
                 ebm_global,
                 feature_name,
                 X_train,
-                classification=kwargs.get("classification", True),
-                noise_levels=kwargs.get("noise_levels", {}),
-                axlines=kwargs.get("axlines", {}),
-                ylims=kwargs.get("ylims", {}),
-                xlims=kwargs.get("xlims", {}),
-                xlabels=kwargs.get("xlabels", {}),
-                ylabel=kwargs.get("ylabel", "Addition to Score"),
+                classification=classification,
+                noise_levels=noise_levels,
+                axlines=axlines,
+                ylims=ylims,
+                xlims=xlims,
+                xlabels=xlabels,
+                ylabel=ylabel,
+                **kwargs
             )
             plt.show()
             if "savedir" in kwargs:
+                feat_name_clean = feature_name.replace(" ", "_").replace("/", "_")
                 plt.savefig(
-                    f"{kwargs['savedir']}/{feature_name}.pdf",
+                    f"{kwargs['savedir']}/{feat_name_clean}.pdf",
                     dpi=300,
                     bbox_inches="tight",
                 )
