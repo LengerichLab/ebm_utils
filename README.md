@@ -14,7 +14,8 @@ Includes:
 - [Marginalization with EBMs](https://github.com/blengerich/ebm_utils/blob/main/demos/marginalize_demo.ipynb)
 - [Plotting effects in EBMs with Matplotlib utils](https://github.com/blengerich/ebm_utils/blob/main/demos/plotting_demo.ipynb)
 - [Purification of interaction effects](https://github.com/blengerich/ebm_utils/blob/main/demos/purify_demo.ipynb)
-
+- [Automated Discontinuity Finding with EBMs](https://github.com/blengerich/DeathByRoundNumbers/blob/main/analyze_pneumonia.ipynb)
+- [Automated Non-Monotonicity Finding with EBMs](https://github.com/blengerich/DeathByRoundNumbers/blob/main/analyze_pneumonia.ipynb)
 
 ## Install and Use EBM Utils
 ```
