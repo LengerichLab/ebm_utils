@@ -26,22 +26,30 @@ def axline(x_position, **kwargs):
 def axvlines(x_positions, **kwargs):
     """
     Draw vertical lines on plot
-    :param xs: A scalar, list, or 1D array of horizontal offsets
+    :param x_positions: A scalar, list, or 1D array of horizontal offsets
     :param kwargs: Keyword arguments to be passed to plot
     :return: The plot object corresponding to the lines.
     """
     x_positions = np.array(
         (x_positions,) if np.isscalar(x_positions) else x_positions, copy=False
     )
-    lims = (plt.gca().get_ylim()[0], plt.gca().get_ylim()[0] + (plt.gca().get_ylim()[-1]-plt.gca().get_ylim()[0]) * 0.05, np.nan)
+    lims = (
+        plt.gca().get_ylim()[0],
+        plt.gca().get_ylim()[0]
+        + (plt.gca().get_ylim()[-1] - plt.gca().get_ylim()[0]) * 0.05,
+        np.nan,
+    )
     x_points = np.repeat(x_positions[:, None], repeats=3, axis=1).flatten()
     y_points = np.repeat(
         np.array(lims)[None, :], repeats=len(x_positions), axis=0
     ).flatten()
-    plot = plt.plot(x_points, y_points,
+    plot = plt.plot(
+        x_points,
+        y_points,
         color=kwargs.pop("axvlines_color", "red"),
         alpha=kwargs.pop("axvlines_alpha", 0.4),
-        scaley=False)
+        scaley=False,
+    )
     return plot
 
 
@@ -49,11 +57,12 @@ def fill_x(orig):
     """
     Fills in the x values to make a continuous plot.
     """
+    assert len(orig) > 1, "Need at least 2 points to fill in x values."
     new_x = [orig[0]]
     for i in range(1, len(orig)):
-        new_x.append(orig[i - 1] + (orig[i] - orig[i - 1]) / 2)
-        new_x.append(orig[i - 1] + (orig[i] - orig[i - 1]) / 2)
         new_x.append(orig[i])
+        new_x.append(orig[i])
+    new_x.append(orig[-1] + (orig[-1] - orig[-2]) / 2)  # next midpoint
     return np.array(new_x)
 
 
@@ -65,7 +74,7 @@ def fill_y(orig):
     for i in range(1, len(orig)):
         new_y.append(orig[i - 1])
         new_y.append(orig[i])
-        new_y.append(orig[i])
+    new_y.append(orig[-1])
     return np.array(new_y)
 
 
@@ -83,52 +92,61 @@ def repeat_last(np_ar):
     return np.append(np_ar, np_ar[-1])
 
 
-def plot_discrete(data, my_names, exp=True):
+def plot_discrete(data, my_names, **kwargs):
     """
     Plot effects of a discrete variable.
+    Assumes that all values in the names should be plotted.
     """
     my_xlims = [-0.5, len(my_names) - 0.5]
     my_min = np.min([data["scores"][j] for j, x in enumerate(my_names)])
-    if exp:
-        lowers = np.exp(fill_y(data["lower_bounds"] - my_min))
-        uppers = np.exp(fill_y(data["upper_bounds"] - my_min))
-        means = np.exp(fill_y(data["scores"] - my_min))
-    else:
-        lowers = fill_y(data["lower_bounds"] - my_min)
-        uppers = fill_y(data["upper_bounds"] - my_min)
-        means = fill_y(data["scores"] - my_min)
-    if len(my_names) > 5 or np.max([len(n) for n in my_names]) > 10:
+    lowers = fill_y(data["lower_bounds"] - my_min)
+    uppers = fill_y(data["upper_bounds"] - my_min)
+    means = fill_y(data["scores"] - my_min)
+    if len(my_names) > kwargs.get("max_horiz_names", 5) or np.max(
+        [len(n) for n in my_names]
+    ) > kwargs.get("max_horiz_name_len", 10):
         plt.xticks(range(len(my_names)), my_names, rotation=60, ha="right")
     else:
         plt.xticks(range(len(my_names)), my_names)
 
-    my_names_as_ints = np.array(list(range(len(my_names))))
+    my_names_as_ints = fill_x(np.array(list(range(len(my_names)))) - 0.5)
     return my_names_as_ints, my_xlims, lowers, uppers, means
 
 
-def plot_numeric(data, xlims, standard_feat, exp=True):
+def plot_numeric(data, xlims, standard_feat):
     """
     Plot effects of a numeric variable.
+    Assumes that limits are either provided or that the 2nd and 98th percentiles should be used.
     """
     default_xlims = [np.percentile(data["names"], 2), np.percentile(data["names"], 98)]
     if xlims is None:
         my_xlims = default_xlims
     else:
         my_xlims = xlims.get(standard_feat, default_xlims)
-    my_names = data["names"]
-    good_name_idx = [
-        np.logical_and(x >= my_xlims[0], x <= my_xlims[1]) for x in my_names[:-1]
-    ]
-    my_vals = [data["scores"][j] for j in range(len(good_name_idx)) if good_name_idx[j]]
-    my_min = np.min(my_vals)
-    if exp:
-        lowers = np.exp(fill_y(repeat_last(data["lower_bounds"] - my_min)))
-        uppers = np.exp(fill_y(repeat_last(data["upper_bounds"] - my_min)))
-        means = np.exp(fill_y(repeat_last(data["scores"] - my_min)))
-    else:
-        lowers = fill_y(repeat_last(data["lower_bounds"] - my_min))
-        uppers = fill_y(repeat_last(data["upper_bounds"] - my_min))
-        means = fill_y(repeat_last(data["scores"] - my_min))
+    my_names = np.array(data["names"])
+    my_names[0] -= (
+        my_names[1] - my_names[0]
+    ) / 2  # EBM actually returns the value in the middle of the bin, but we want the left edge.
+    my_names[-1] += (
+        my_names[-1] - my_names[-2]
+    ) / 2  # EBM actually returns the value in the middle of the bin, but we want the right edge.
+    my_names = fill_x(my_names)
+    lowers = fill_y(np.array(repeat_last(data["lower_bounds"])))
+    uppers = fill_y(np.array(repeat_last(data["upper_bounds"])))
+    means = fill_y(np.array(repeat_last(data["scores"])))
+    sel_idx = []
+    for i, x_name in enumerate(my_names):
+        if my_xlims[0] <= x_name <= my_xlims[1]:
+            sel_idx.append(i)
+        elif i + 1 < len(my_names) and my_xlims[0] <= my_names[i + 1] <= my_xlims[1]:
+            sel_idx.append(i)
+        elif i - 1 >= 0 and my_xlims[0] <= my_names[i - 1] <= my_xlims[1]:
+            sel_idx.append(i)
+    my_min = np.min(means[sel_idx])
+    lowers = lowers[sel_idx] - my_min
+    uppers = uppers[sel_idx] - my_min
+    means = means[sel_idx] - my_min
+    my_names = my_names[sel_idx]
 
     return my_names, my_xlims, lowers, uppers, means
 
@@ -219,6 +237,8 @@ def plot_feat(
 ):
     """
     Plot the effects of a single feat.
+    If X_train is provided, then the histogram will be drawn.
+    If classification is True, then the y axis will be odds ratio.
     """
 
     i = exp.feature_names.index(feat)
@@ -231,14 +251,13 @@ def plot_feat(
     setup_axlines(standard_feat, **kwargs)
     if exp.feature_types[i] == "continuous":
         my_names, my_xlims, lowers, uppers, means = plot_numeric(
-            data, kwargs.get("xlims", None), standard_feat, classification
+            data, kwargs.get("xlims", None), standard_feat
         )
         default_noise_level = 0.01
     elif exp.feature_types[i] == "categorical":
-        my_names, my_xlims, lowers, uppers, means = plot_discrete(
-            data, data["names"], classification
-        )
-        my_xs = np.array([float(data["names"].index(str(x))) for x in my_xs])
+        my_names, my_xlims, lowers, uppers, means = plot_discrete(data, data["names"])
+        if X_train is not None:
+            my_xs = np.array([float(data["names"].index(str(x))) for x in my_xs])
         default_noise_level = 0.1
     else:
         print(
@@ -247,21 +266,33 @@ def plot_feat(
         return
     plt.xlim(my_xlims)
     setup_ylims(standard_feat, classification, **kwargs)
-    setup_axline_hist(standard_feat, default_noise_level, my_xs, **kwargs)
+    if X_train is not None:
+        setup_axline_hist(standard_feat, default_noise_level, my_xs, **kwargs)
 
+    if classification:
+        lowers = np.exp(lowers)
+        uppers = np.exp(uppers)
+        means = np.exp(means)
+
+    my_names[0] = np.min([my_names[0], my_xlims[0]])  # extend to left edge of graph
+    my_names[-1] = np.max([my_names[-1], my_xlims[1]])  # extend to right edge of graph
     plt.fill_between(
-        fill_x(my_names),
+        my_names,
         means - 2 * (means - lowers),
         means + 2 * (uppers - means),
         alpha=kwargs.get("fill_alpha", 0.2),
         color=kwargs.get("fill_color", "blue"),
     )
-    plt.plot(fill_x(my_names), means, color=kwargs.get("mean_color", "blue"), linewidth=kwargs.get("mean_linewidth", 1))
+    plt.plot(
+        my_names,
+        means,
+        color=kwargs.get("mean_color", "blue"),
+        linewidth=kwargs.get("mean_linewidth", 1),
+    )
     setup_ylabel(classification, **kwargs)
     if kwargs.get("remove_spines", False):
-        ax = plt.gca()
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+        plt.gca().spines["top"].set_visible(False)
+        plt.gca().spines["right"].set_visible(False)
 
 
 def organize_all_bools(feat_names, ebm_global, **kwargs):
@@ -346,7 +377,7 @@ def plot_all_bools(
             plt.axhline(
                 kwargs["axhline"],
                 linestyle=kwargs.get("axhline_linestyle", "--"),
-                color=kwargs.get("axhline_color", "gray")
+                color=kwargs.get("axhline_color", "gray"),
             )
         if "figname" in kwargs and kwargs["figname"] is not None:
             plt.savefig(kwargs["figname"], dpi=300, bbox_inches="tight")
@@ -448,7 +479,7 @@ def plot_interaction(ebm_global, mat, feat_id1, feat_id2, **kwargs):
 
 
 def plot_all_features(ebm_global, X_train, **kwargs):
-    """Plot alll effects."""
+    """Plot effects of all features."""
     plot_mains(ebm_global, X_train, **kwargs)
     plot_pairs(ebm_global, **kwargs)
 
@@ -473,12 +504,12 @@ def plot_mains(ebm_global, X_train, classification=True, **kwargs):
         ylabel = kwargs.pop("ylabel", "Addition to Log-Odds")
     else:
         ylabel = kwargs.pop("ylabel", "Addition to Score")
-    noise_levels=kwargs.pop("noise_levels", {})
-    axlines=kwargs.pop("axlines", {})
-    ylims=kwargs.pop("ylims", {})
-    xlims=kwargs.pop("xlims", {})
-    xlabels=kwargs.pop("xlabels", {})
-    
+    noise_levels = kwargs.pop("noise_levels", {})
+    axlines = kwargs.pop("axlines", {})
+    ylims = kwargs.pop("ylims", {})
+    xlims = kwargs.pop("xlims", {})
+    xlabels = kwargs.pop("xlabels", {})
+
     # Plot Boolean variables on a single bar chart.
     plot_all_bools(
         ebm_global.feature_names,
@@ -489,13 +520,14 @@ def plot_mains(ebm_global, X_train, classification=True, **kwargs):
         min_samples=kwargs.pop("bool_minsamples", 50),
         ticksize=kwargs.pop("bool_ticksize", 26),
         ylabel=ylabel,
-        classification=classification
+        classification=classification,
     )
     for i, feature_name in enumerate(ebm_global.feature_names):
         if ebm_global.feature_types[i] == "interaction":
             continue
-        if len(set(X_train.values[:, i])) != 2 or kwargs.get(
-            "plot_bools_individually", False
+        if len(set(X_train.values[:, i])) > 2 or (
+            len(set(X_train.values[:, i])) == 2
+            and kwargs.get("plot_bools_individually", False)
         ):
             plot_feat(
                 ebm_global,
@@ -508,7 +540,7 @@ def plot_mains(ebm_global, X_train, classification=True, **kwargs):
                 xlims=xlims,
                 xlabels=xlabels,
                 ylabel=ylabel,
-                **kwargs
+                **kwargs,
             )
             plt.show()
             if "savedir" in kwargs:
