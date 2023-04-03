@@ -245,7 +245,8 @@ def plot_feat(
     data = exp.data(i)
     if X_train is not None:
         my_xs = X_train[feat]
-    plt.figure(figsize=kwargs.get("figsize", (15, 10)))
+    if kwargs.get("new_figure", True):
+        plt.figure(figsize=kwargs.get("figsize", (15, 10)))
     setup_xlabel(feat, **kwargs)
     standard_feat = standardize(feat)
     setup_axlines(standard_feat, **kwargs)
