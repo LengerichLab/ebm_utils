@@ -146,16 +146,20 @@ def find_non_monotonicities_from_ebm(
         nonzero_idx = np.where(np.abs(my_slopes) > 1e-8)[0]
         sorted_x_nz = data_df[predictor].values[order][nonzero_idx]
         my_slopes = my_slopes[nonzero_idx]
-        my_slopes /= np.abs(my_slopes)  # Only looking for sign, not magnitude
+        #my_slopes /= np.abs(my_slopes)  # Only looking for sign, not magnitude
         if len(my_slopes) < 3:
             continue
         for changepoint in algo.fit(my_slopes).predict(pen=pen):
-            print(changepoint)
+            changepoint -= 1
             if counter_causal_only and not is_counter_causal(my_slopes, changepoint):
                 continue
             results.append([predictor, sorted_x_nz[changepoint]])
+    if len(results) == 0:
+        results = np.empty((0, 2))
+    else:
+        results = np.array(results)
     results_df = pd.DataFrame(
-        np.array(results),
+        results,
         columns=["Feature", "Value"],
     )
     results_df['Value'] = pd.to_numeric(results_df['Value'])
@@ -270,8 +274,12 @@ def find_discontinuities_from_ebm(ebm_global, data_df, y_true, min_samples=100, 
                 )
             ).tolist()
         )
+    if len(discontinuities) == 0:
+        discontinuities = np.empty((0, 5))
+    else:
+        discontinuities = np.array(discontinuities)
     results_df = pd.DataFrame(
-        np.array(discontinuities),
+        discontinuities,
         columns=["Feature", "Value", "# Samples", "Effect Size", "P-Ratio"],
     )
     results_df['Effect Size'] = pd.to_numeric(results_df['Effect Size'])
