@@ -129,7 +129,7 @@ def is_counter_causal(my_slopes, changepoint):
 
 
 def find_non_monotonicities_from_ebm(
-    ebm_global, data_df, prob_threshold=0.2, counter_causal_only=False, pen=0
+    ebm_global, data_df, counter_causal_only=False, pen=0
 ):
     """
     Find Non-Monotonicities from a trained EBM.
