@@ -4,7 +4,7 @@ Utilities for finding discontinuities and non-monotonicities.
 
 import numpy as np
 import pandas as pd
-from sdt.changepoint import BayesOffline
+import ruptures as rpt
 
 from ebm_utils.analysis.embeddings import calc_embeddings
 from ebm_utils.fit import fit_ebm
@@ -129,14 +129,16 @@ def is_counter_causal(my_slopes, changepoint):
 
 
 def find_non_monotonicities_from_ebm(
-    ebm_global, data_df, prob_threshold=0.2, counter_causal_only=False
+    ebm_global, data_df, counter_causal_only=False, pen=0
 ):
     """
     Find Non-Monotonicities from a trained EBM.
+    Return a DataFrame of results.
+    TODO: Incorporate probability threshold.
     """
     slopes = calculate_slopes(ebm_global, data_df)
     results = []
-    det = BayesOffline("const", "gauss")
+    algo = rpt.Pelt(model="rbf")
     for j, predictor in enumerate(data_df.columns):
         # Find where slope goes from consistent positive to consistent negative.
         order = np.argsort(data_df[predictor].values)
@@ -147,9 +149,8 @@ def find_non_monotonicities_from_ebm(
         my_slopes /= np.abs(my_slopes)  # Only looking for sign, not magnitude
         if len(my_slopes) < 3:
             continue
-        for changepoint in det.find_changepoints(
-            my_slopes, prob_threshold=prob_threshold
-        ):
+        for changepoint in algo.fit(my_slopes).predict(pen=pen):
+            print(changepoint)
             if counter_causal_only and not is_counter_causal(my_slopes, changepoint):
                 continue
             results.append([predictor, sorted_x_nz[changepoint]])
